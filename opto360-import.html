@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Opto360 — Mise à jour mensuelle</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  /* ── Reset & base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #F0F4F9;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 16px;
+    color: #1A1A2E;
+  }
+
+  /* ── Layout ── */
+  .app { width: 100%; max-width: 680px; }
+
+  /* ── Header ── */
+  .header {
+    background: #1B4F8A;
+    padding: 16px 24px;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .header-logo {
+    width: 38px; height: 38px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .header-title { color: #fff; font-size: 17px; font-weight: 600; }
+  .header-sub { color: rgba(255,255,255,0.65); font-size: 12px; margin-top: 1px; }
+  .header-badge {
+    margin-left: auto;
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+
+  /* ── Body card ── */
+  .body {
+    background: #fff;
+    border: 1px solid #DDE4EE;
+    border-top: none;
+    border-radius: 0 0 12px 12px;
+    padding: 24px;
+  }
+
+  /* ── Clinic bar ── */
+  .clinic-bar {
+    background: #F5F8FC;
+    border: 1px solid #DDE4EE;
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 20px;
+  }
+  .clinic-avatar {
+    width: 34px; height: 34px;
+    background: #D4E3F5;
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; color: #1B4F8A;
+    flex-shrink: 0;
+  }
+  .clinic-name { font-size: 13px; font-weight: 600; color: #1A1A2E; }
+  .clinic-sub { font-size: 11px; color: #7A8BA0; margin-top: 1px; }
+  .clinic-status {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: #2A6B3C;
+  }
+  .status-dot { width: 7px; height: 7px; background: #3B8A4F; border-radius: 50%; }
+
+  /* ── Steps ── */
+  .steps {
+    display: flex; gap: 6px;
+    margin-bottom: 22px;
+  }
+  .step {
+    flex: 1; text-align: center;
+    padding: 8px 4px;
+    border-radius: 8px;
+    border: 1px solid #DDE4EE;
+    background: #F5F8FC;
+    transition: all .2s;
+  }
+  .step.active { background: #E6EEF8; border-color: #1B4F8A; }
+  .step.done { background: #EAF3EE; border-color: #4A9E6B; }
+  .step-n { font-size: 10px; color: #7A8BA0; margin-bottom: 1px; }
+  .step.active .step-n { color: #1B4F8A; }
+  .step.done .step-n { color: #2A6B3C; }
+  .step-label { font-size: 12px; font-weight: 500; color: #7A8BA0; }
+  .step.active .step-label { color: #1B4F8A; }
+  .step.done .step-label { color: #2A6B3C; }
+
+  /* ── Screens ── */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ── Drop zone ── */
+  .drop-zone {
+    border: 2px dashed #A8C0DC;
+    border-radius: 10px;
+    padding: 40px 20px;
+    text-align: center;
+    background: #F5F8FC;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    background: #EAF0F9;
+    border-color: #1B4F8A;
+  }
+  .drop-icon { font-size: 40px; margin-bottom: 12px; }
+  .drop-title { font-size: 15px; font-weight: 600; color: #1A1A2E; margin-bottom: 5px; }
+  .drop-sub { font-size: 13px; color: #7A8BA0; }
+  .drop-link { color: #1B4F8A; text-decoration: underline; cursor: pointer; }
+  .formats { display: flex; gap: 6px; justify-content: center; margin-top: 14px; }
+  .fmt { background: #D4E3F5; color: #1B4F8A; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+  .drop-hint { font-size: 11px; color: #A0AEBF; margin-top: 10px; }
+  #file-input { display: none; }
+
+  /* ── Section label ── */
+  .section-label {
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .07em;
+    color: #7A8BA0;
+    margin: 0 0 10px;
+  }
+
+  /* ── Memo banner ── */
+  .memo-banner {
+    background: #E6EEF8;
+    border: 1px solid #A8C0DC;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px; color: #1B4F8A;
+    display: flex; align-items: flex-start; gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  /* ── Mapper table ── */
+  .mapper-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+  .mapper-table th {
+    text-align: left;
+    color: #7A8BA0;
+    font-weight: 500;
+    font-size: 11px;
+    padding: 6px 10px;
+    border-bottom: 1px solid #DDE4EE;
+  }
+  .mapper-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #F0F4F9;
+    vertical-align: middle;
+  }
+  .mapper-table tr:last-child td { border-bottom: none; }
+  .mapper-table tr.warn-row { background: #FFFBF0; }
+  .col-mono {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    color: #1A1A2E;
+    background: #F0F4F9;
+    padding: 3px 7px;
+    border-radius: 4px;
+    border: 1px solid #DDE4EE;
+    white-space: nowrap;
+  }
+  .col-arrow { text-align: center; color: #A0AEBF; font-size: 14px; }
+  .col-field { color: #1B4F8A; font-weight: 500; font-size: 12px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; padding: 3px 9px; border-radius: 20px;
+    white-space: nowrap;
+  }
+  .badge-ok { background: #EAF3EE; color: #2A6B3C; }
+  .badge-warn { background: #FEF7E6; color: #8A5B0F; }
+  .badge-req { background: #E6EEF8; color: #1B4F8A; }
+  .mapper-select {
+    font-size: 12px; padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid #DDE4EE;
+    background: #fff;
+    color: #1A1A2E;
+    width: 100%;
+  }
+
+  /* ── Alert boxes ── */
+  .alert {
+    border-radius: 8px; padding: 11px 14px;
+    display: flex; gap: 10px; align-items: flex-start;
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+  .alert-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .alert-warn { background: #FEF7E6; border: 1px solid #E8C84A; color: #6B4A0F; }
+  .alert-ok { background: #EAF3EE; border: 1px solid #4A9E6B; color: #1E4D2E; }
+  .alert-info { background: #E6EEF8; border: 1px solid #A8C0DC; color: #1B4F8A; }
+  .alert-title { font-weight: 600; margin-bottom: 3px; }
+
+  /* ── Stats ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .stat {
+    background: #F5F8FC;
+    border: 1px solid #DDE4EE;
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .stat-n { font-size: 26px; font-weight: 600; color: #1A1A2E; }
+  .stat-n.green { color: #2A6B3C; }
+  .stat-n.blue { color: #1B4F8A; }
+  .stat-l { font-size: 11px; color: #7A8BA0; margin-top: 3px; }
+
+  /* ── Buttons ── */
+  .btn-row {
+    display: flex; gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+  }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid #DDE4EE;
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-size: 14px;
+    color: #7A8BA0;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-ghost:hover { background: #F5F8FC; }
+  .btn-primary {
+    background: #1B4F8A;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 22px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    transition: background .15s;
+  }
+  .btn-primary:hover { background: #163F6E; }
+  .btn-primary:disabled { background: #A0AEBF; cursor: not-allowed; }
+
+  /* ── Success screen ── */
+  .success-icon {
+    width: 56px; height: 56px;
+    background: #EAF3EE;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+    margin: 0 auto 16px;
+  }
+  .success-title {
+    text-align: center;
+    font-size: 18px; font-weight: 600;
+    color: #1A1A2E;
+    margin-bottom: 6px;
+  }
+  .success-sub {
+    text-align: center;
+    font-size: 13px; color: #7A8BA0;
+    margin-bottom: 20px;
+  }
+  .next-import {
+    text-align: center;
+    font-size: 12px; color: #A0AEBF;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #F0F4F9;
+  }
+
+  /* ── Loading ── */
+  .loading {
+    text-align: center;
+    padding: 32px;
+    color: #7A8BA0;
+    font-size: 14px;
+  }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid #DDE4EE;
+    border-top-color: #1B4F8A;
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+    margin: 0 auto 14px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Error ── */
+  .alert-error { background: #FEF0F0; border: 1px solid #E8A0A0; color: #6B1F1F; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-logo">👁</div>
+    <div>
+      <div class="header-title">Opto360</div>
+      <div class="header-sub">Portail clinique</div>
+    </div>
+    <div class="header-badge">Mise à jour mensuelle</div>
+  </div>
+
+  <div class="body">
+
+    <!-- CLINIC BAR -->
+    <div class="clinic-bar">
+      <div class="clinic-avatar" id="clinic-avatar">–</div>
+      <div>
+        <div class="clinic-name" id="clinic-name">Chargement…</div>
+        <div class="clinic-sub" id="clinic-sub">–</div>
+      </div>
+      <div class="clinic-status">
+        <div class="status-dot"></div>
+        Système actif
+      </div>
+    </div>
+
+    <!-- STEPS -->
+    <div class="steps">
+      <div class="step active" id="step-1"><div class="step-n">Étape 1</div><div class="step-label">Fichier</div></div>
+      <div class="step" id="step-2"><div class="step-n">Étape 2</div><div class="step-label">Colonnes</div></div>
+      <div class="step" id="step-3"><div class="step-n">Étape 3</div><div class="step-label">Aperçu</div></div>
+      <div class="step" id="step-4"><div class="step-n">Étape 4</div><div class="step-label">Terminé</div></div>
+    </div>
+
+    <!-- SCREEN 1 : DROP -->
+    <div class="screen active" id="screen-drop">
+      <div class="drop-zone" id="drop-zone">
+        <div class="drop-icon">📂</div>
+        <div class="drop-title">Glisser votre export ici</div>
+        <div class="drop-sub">ou <span class="drop-link" onclick="document.getElementById('file-input').click()">parcourir les fichiers</span></div>
+        <div class="formats">
+          <span class="fmt">CSV</span>
+          <span class="fmt">XLS</span>
+          <span class="fmt">XLSX</span>
+        </div>
+        <div class="drop-hint">Export brut du DME — aucune modification requise</div>
+      </div>
+      <input type="file" id="file-input" accept=".csv,.xls,.xlsx">
+    </div>
+
+    <!-- SCREEN 2 : MAPPER -->
+    <div class="screen" id="screen-mapper">
+      <div class="section-label">Correspondance des colonnes</div>
+      <div class="memo-banner" id="mapper-memo">
+        ℹ️ Première utilisation — confirmez les correspondances. Elles seront mémorisées pour les prochains imports.
+      </div>
+      <table class="mapper-table">
+        <thead>
+          <tr>
+            <th style="width:34%">Colonne dans votre fichier</th>
+            <th style="width:8%"></th>
+            <th style="width:36%">Champ système</th>
+            <th style="width:22%;text-align:center">Confiance</th>
+          </tr>
+        </thead>
+        <tbody id="mapper-body"></tbody>
+      </table>
+      <div id="mapper-alert"></div>
+      <div class="btn-row">
+        <button class="btn-ghost" onclick="goTo(1)">Retour</button>
+        <button class="btn-primary" id="btn-confirm-mapper" onclick="confirmMapper()">
+          💾 Confirmer et mémoriser
+        </button>
+      </div>
+    </div>
+
+    <!-- SCREEN 3 : APERÇU -->
+    <div class="screen" id="screen-apercu">
+      <div class="section-label">Aperçu avant mise à jour</div>
+      <div class="stats-row">
+        <div class="stat"><div class="stat-n blue" id="stat-total">–</div><div class="stat-l">patients dans le fichier</div></div>
+        <div class="stat"><div class="stat-n" id="stat-new">–</div><div class="stat-l">nouveaux patients</div></div>
+        <div class="stat"><div class="stat-n green" id="stat-reminders">–</div><div class="stat-l">rappels ce mois-ci</div></div>
+      </div>
+      <div id="apercu-alerts"></div>
+      <div class="btn-row">
+        <button class="btn-ghost" onclick="goTo(2)">Retour</button>
+        <button class="btn-primary" id="btn-update" onclick="runUpdate()">
+          Mettre à jour →
+        </button>
+      </div>
+    </div>
+
+    <!-- SCREEN LOADING -->
+    <div class="screen" id="screen-loading">
+      <div class="loading">
+        <div class="spinner"></div>
+        Synchronisation en cours…
+      </div>
+    </div>
+
+    <!-- SCREEN 4 : CONFIRM -->
+    <div class="screen" id="screen-confirm">
+      <div class="success-icon">✅</div>
+      <div class="success-title">Mise à jour terminée</div>
+      <div class="success-sub" id="confirm-sub">–</div>
+      <div class="alert alert-ok">
+        <span class="alert-icon">📧</span>
+        <div>Un récapitulatif a été envoyé par courriel à l'adresse de la clinique.</div>
+      </div>
+      <div class="next-import" id="next-import">
+        Prochaine mise à jour suggérée : <strong>–</strong>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+// CONFIG — remplace ces valeurs par tes clés Supabase
+// ════════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://bunbtiuzyelhgvhpsgkz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RLMDkK5MG45saVamG9Rh6Q_I0AaYbkG';
+const CLINIC_ID    = '1b1791c6-6f9f-4b78-b9eb-6ebcb15fe853';
+const CLINIC_NAME  = 'Clinique Optique Test';
+const CLINIC_EMAIL = 'test@optique.com';
+
+// ════════════════════════════════════════════════════════
+// Champs système et leurs synonymes
+// ════════════════════════════════════════════════════════
+const FIELD_SYNONYMS = {
+  first_name:        ['prenom','prénom','firstname','first_name','prenom_pat','nom_patient','patient','nom','name','given_name','prénom_patient'],
+  phone:             ['tel','telephone','téléphone','cellulaire','cell','mobile','tel_cell','tel_cellulaire','phone','phone_number','numero','numéro','tel_mobile'],
+  last_exam_date:    ['date_visite','date_examen','dernier_examen','last_exam','last_exam_date','dt_exam','date_exam','visite','exam_date','date_derniere_visite','date_dernière_visite'],
+  next_appointment:  ['prochain_rdv','next_appointment','rdv','appointment','prochain_rendez_vous','next_rdv','date_rdv','prochainrdv','rendez_vous'],
+  appointment_time:  ['heure','heure_rdv','heure_appointment','time','appointment_time','heure_rendez_vous','h_rdv'],
+  appointment_type:  ['type_rdv','type','appointment_type','type_rendez_vous','type_visite','type_appointment'],
+  email:             ['email','courriel','e_mail','mail','email_address','adresse_courriel'],
+  email_opt_in:      ['consent','consentement','opt_in','email_opt_in','consent_courriel','consentement_courriel','optin'],
+  optometrist:       ['optometriste','optométriste','doctor','dr','medecin','médecin','optometrist','praticien'],
+  language:          ['langue','language','lang','langue_pat'],
+};
+
+const FIELD_LABELS = {
+  first_name:       'Prénom',
+  phone:            'Téléphone',
+  last_exam_date:   'Dernier examen',
+  next_appointment: 'Prochain rendez-vous',
+  appointment_time: 'Heure du rendez-vous',
+  appointment_type: 'Type de rendez-vous',
+  email:            'Courriel',
+  email_opt_in:     'Consentement courriel',
+  optometrist:      'Optométriste',
+  language:         'Langue',
+};
+
+const REQUIRED_FIELDS = ['first_name','phone','last_exam_date'];
+
+// ════════════════════════════════════════════════════════
+// État global
+// ════════════════════════════════════════════════════════
+let parsedRows = [];
+let detectedHeaders = [];
+let currentMapping = {};
+let existingPhones = new Set();
+
+// ════════════════════════════════════════════════════════
+// Navigation
+// ════════════════════════════════════════════════════════
+function goTo(step) {
+  ['drop','mapper','apercu','loading','confirm'].forEach(s => {
+    document.getElementById('screen-'+s).classList.remove('active');
+  });
+  const screens = {1:'drop',2:'mapper',3:'apercu',4:'confirm'};
+  if (screens[step]) document.getElementById('screen-'+screens[step]).classList.add('active');
+
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById('step-'+i);
+    el.classList.remove('active','done');
+    if (i < step) el.classList.add('done');
+    if (i === step) el.classList.add('active');
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// Supabase helpers
+// ════════════════════════════════════════════════════════
+async function sb(path, options = {}) {
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': options.prefer || 'return=representation',
+    },
+    ...options,
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err);
+  }
+  return options.noJson ? null : res.json();
+}
+
+// ════════════════════════════════════════════════════════
+// Init — charger la clinique
+// ════════════════════════════════════════════════════════
+async function initClinic() {
+  const initials = CLINIC_NAME.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+  document.getElementById('clinic-avatar').textContent = initials;
+  document.getElementById('clinic-name').textContent = CLINIC_NAME;
+  const d = new Date();
+  document.getElementById('clinic-sub').textContent = 'Dernière mise à jour : ' +
+    d.toLocaleDateString('fr-CA', {day:'numeric',month:'long',year:'numeric'});
+  try {
+    const phones = await sb('patients?clinic_id=eq.' + CLINIC_ID + '&select=phone');
+    existingPhones = new Set((phones || []).map(p => normalizePhone(p.phone)));
+    const profile = await sb('clinic_column_profiles?clinic_id=eq.' + CLINIC_ID + '&select=mapping');
+    if (profile && profile[0] && profile[0].mapping) currentMapping = profile[0].mapping;
+  } catch(e) { console.warn('Init error:', e); }
+}
+// ════════════════════════════════════════════════════════
+// Normalisation
+// ════════════════════════════════════════════════════════
+function normalizePhone(v) {
+  if (!v) return '';
+  return String(v).replace(/\D/g,'').replace(/^1/,'');
+}
+
+function normalizeDate(v) {
+  if (!v) return null;
+  const s = String(v).trim();
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // DD/MM/YYYY
+  const dmy = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (dmy) return `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+  // MM/DD/YYYY
+  const mdy = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (mdy) return `${mdy[3]}-${mdy[1]}-${mdy[2]}`;
+  // Excel serial number
+  if (/^\d{5}$/.test(s)) {
+    const d = new Date(Math.round((parseInt(s) - 25569) * 86400 * 1000));
+    return d.toISOString().split('T')[0];
+  }
+  return s;
+}
+
+function normalizeTime(v) {
+  if (!v) return null;
+  const s = String(v).trim();
+  const hm = s.match(/^(\d{1,2}):(\d{2})/);
+  if (hm) return `${hm[1].padStart(2,'0')}:${hm[2]}`;
+  return s;
+}
+
+function normalizeLang(v) {
+  if (!v) return 'FR';
+  const s = String(v).trim().toLowerCase();
+  return ['en','english','anglais','ang'].includes(s) ? 'EN' : 'FR';
+}
+
+function normalizeOptIn(v) {
+  if (!v) return false;
+  const s = String(v).trim().toLowerCase();
+  return ['oui','yes','true','1','vrai'].includes(s);
+}
+
+function normalizeType(v) {
+  if (!v) return 'Examen';
+  const s = String(v).trim().toLowerCase();
+  return ['examen','exam','examination','examen de la vue'].includes(s) ? 'Examen' : 'Autre';
+}
+
+// ════════════════════════════════════════════════════════
+// Détection automatique des colonnes
+// ════════════════════════════════════════════════════════
+function detectMapping(headers) {
+  const mapping = {};
+  const used = new Set();
+  headers.forEach(h => {
+    const key = h.toLowerCase().trim()
+      .replace(/\s+/g,'_')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    for (const [field, synonyms] of Object.entries(FIELD_SYNONYMS)) {
+      if (used.has(field)) continue;
+      if (synonyms.some(s => key === s || key.includes(s) || s.includes(key))) {
+        mapping[h] = field;
+        used.add(field);
+        break;
+      }
+    }
+    if (!mapping[h]) mapping[h] = '__ignore__';
+  });
+  return mapping;
+}
+
+function confidenceLabel(header, field) {
+  if (field === '__ignore__') return 'warn';
+  return 'ok';
+}
+
+// ════════════════════════════════════════════════════════
+// Fichier → parsing
+// ════════════════════════════════════════════════════════
+function handleFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'csv') {
+    Papa.parse(file, {
+      header: true, skipEmptyLines: true,
+      complete: r => processRows(r.data, Object.keys(r.data[0] || {})),
+    });
+  } else {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const wb = XLSX.read(e.target.result, { type:'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      processRows(rows, Object.keys(rows[0] || {}));
+    };
+    reader.readAsArrayBuffer(file);
+  }
+}
+
+function processRows(rows, headers) {
+  parsedRows = rows;
+  detectedHeaders = headers;
+
+  // Si un profil mémorisé existe, vérifier la compatibilité
+  const savedKeys = Object.keys(currentMapping);
+  const headerKeys = headers;
+  const compatible = savedKeys.length > 0 &&
+    savedKeys.filter(k => headerKeys.includes(k)).length >= savedKeys.length * 0.8;
+
+  if (compatible) {
+    // Auto-apply silencieux
+    showApercu();
+  } else {
+    // Détecter et afficher le mappeur
+    currentMapping = detectMapping(headers);
+    renderMapper(headers, currentMapping);
+    goTo(2);
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// Rendu du mappeur
+// ════════════════════════════════════════════════════════
+function renderMapper(headers, mapping) {
+  const body = document.getElementById('mapper-body');
+  body.innerHTML = '';
+  const fieldOptions = Object.entries(FIELD_LABELS)
+    .map(([k,v]) => `<option value="${k}">${v}</option>`)
+    .join('');
+
+  headers.forEach(h => {
+    const field = mapping[h] || '__ignore__';
+    const conf = confidenceLabel(h, field);
+    const isWarn = field === '__ignore__';
+    const tr = document.createElement('tr');
+    if (isWarn) tr.classList.add('warn-row');
+    tr.innerHTML = `
+      <td><span class="col-mono">${h}</span></td>
+      <td class="col-arrow">→</td>
+      <td>
+        ${conf === 'ok'
+          ? `<span class="col-field">${FIELD_LABELS[field] || field}</span>`
+          : `<select class="mapper-select" data-header="${h}">
+               <option value="__ignore__">Ignorer cette colonne</option>
+               ${fieldOptions}
+             </select>`
+        }
+        ${conf === 'ok' ? `<input type="hidden" data-header="${h}" data-field="${field}">` : ''}
+      </td>
+      <td style="text-align:center">
+        ${conf === 'ok'
+          ? `<span class="badge badge-ok">✓ Auto</span>`
+          : `<span class="badge badge-warn">⚠ À confirmer</span>`
+        }
+      </td>
+    `;
+    body.appendChild(tr);
+  });
+
+  const unknowns = headers.filter(h => !mapping[h] || mapping[h] === '__ignore__');
+  const alertEl = document.getElementById('mapper-alert');
+  if (unknowns.length > 0) {
+    alertEl.innerHTML = `
+      <div class="alert alert-warn">
+        ⚠️ <div>${unknowns.length} colonne(s) non reconnue(s). Assignez-les ou ignorez-les pour continuer.</div>
+      </div>`;
+  } else {
+    alertEl.innerHTML = `
+      <div class="alert alert-ok">
+        ✅ <div>Toutes les colonnes sont reconnues.</div>
+      </div>`;
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// Confirmer le mappeur
+// ════════════════════════════════════════════════════════
+async function confirmMapper() {
+  // Lire les sélects
+  document.querySelectorAll('.mapper-select').forEach(sel => {
+    if (sel.value && sel.value !== '__ignore__') {
+      currentMapping[sel.dataset.header] = sel.value;
+    }
+  });
+  // Lire les champs cachés (auto-détectés)
+  document.querySelectorAll('[data-field]').forEach(inp => {
+    currentMapping[inp.dataset.header] = inp.dataset.field;
+  });
+
+  // Vérifier les champs obligatoires
+  const mapped = Object.values(currentMapping);
+  const missing = REQUIRED_FIELDS.filter(f => !mapped.includes(f));
+  if (missing.length > 0) {
+    document.getElementById('mapper-alert').innerHTML = `
+      <div class="alert alert-error">
+        ❌ <div>Champs obligatoires manquants : ${missing.map(f => FIELD_LABELS[f]).join(', ')}</div>
+      </div>`;
+    return;
+  }
+
+  // Sauvegarder le profil dans Supabase
+  try {
+    await sb('clinic_column_profiles?clinic_id=eq.' + CLINIC_ID, {
+      method: 'DELETE', noJson: true, prefer: 'return=minimal',
+    });
+    await sb('clinic_column_profiles', {
+      method: 'POST',
+      body: JSON.stringify({ clinic_id: CLINIC_ID, mapping: currentMapping }),
+    });
+  } catch(e) { console.warn('Profile save error:', e); }
+
+  showApercu();
+}
+
+// ════════════════════════════════════════════════════════
+// Aperçu
+// ════════════════════════════════════════════════════════
+function showApercu() {
+  const mapped = applyMapping(parsedRows, currentMapping);
+  const phones = mapped.map(r => normalizePhone(r.phone)).filter(Boolean);
+  const newPatients = phones.filter(p => !existingPhones.has(p)).length;
+
+  // Calculer rappels du mois (M22 à M26)
+  const today = new Date();
+  const reminders = mapped.filter(r => {
+    if (!r.last_exam_date) return false;
+    const exam = new Date(r.last_exam_date);
+    const monthsDiff = (today.getFullYear() - exam.getFullYear()) * 12 +
+      (today.getMonth() - exam.getMonth());
+    return monthsDiff >= 22 && monthsDiff <= 26;
+  }).length;
+
+  // Doublons dans le fichier
+  const seen = new Set();
+  const dups = phones.filter(p => { if(seen.has(p)){return true;} seen.add(p); return false; });
+
+  document.getElementById('stat-total').textContent = mapped.length;
+  document.getElementById('stat-new').textContent = newPatients;
+  document.getElementById('stat-reminders').textContent = reminders;
+
+  const alertsEl = document.getElementById('apercu-alerts');
+  let html = '';
+  if (dups.length > 0) {
+    html += `<div class="alert alert-warn">⚠️ <div>${dups.length} numéro(s) de téléphone en double dans le fichier — seule la première ligne sera conservée.</div></div>`;
+  }
+  if (mapped.filter(r => !r.phone).length > 0) {
+    html += `<div class="alert alert-warn">⚠️ <div>${mapped.filter(r=>!r.phone).length} patient(s) sans numéro de téléphone — ils seront ignorés.</div></div>`;
+  }
+  if (!html) html = `<div class="alert alert-ok">✅ <div>Aucun problème détecté. Prêt pour la mise à jour.</div></div>`;
+  alertsEl.innerHTML = html;
+
+  goTo(3);
+}
+
+// ════════════════════════════════════════════════════════
+// Appliquer le mapping aux lignes
+// ════════════════════════════════════════════════════════
+function applyMapping(rows, mapping) {
+  return rows.map(row => {
+    const out = {};
+    Object.entries(mapping).forEach(([header, field]) => {
+      if (field && field !== '__ignore__') {
+        out[field] = row[header];
+      }
+    });
+    return out;
+  });
+}
+
+// ════════════════════════════════════════════════════════
+// Mise à jour Supabase
+// ════════════════════════════════════════════════════════
+async function runUpdate() {
+  document.getElementById('screen-apercu').classList.remove('active');
+  document.getElementById('screen-loading').classList.add('active');
+
+  const mapped = applyMapping(parsedRows, currentMapping);
+  const seenPhones = new Set();
+  let inserted = 0, updated = 0, skipped = 0;
+
+  for (const row of mapped) {
+    const phone = normalizePhone(row.phone);
+    if (!phone || !row.first_name || !row.last_exam_date) { skipped++; continue; }
+    if (seenPhones.has(phone)) { skipped++; continue; }
+    seenPhones.add(phone);
+
+    const record = {
+      clinic_id:        CLINIC_ID,
+      first_name:       String(row.first_name || '').trim(),
+      phone:            phone,
+      last_exam_date:   normalizeDate(row.last_exam_date),
+      next_appointment: normalizeDate(row.next_appointment) || null,
+      appointment_time: normalizeTime(row.appointment_time) || null,
+      appointment_type: normalizeType(row.appointment_type),
+      email:            row.email ? String(row.email).trim() : null,
+      email_opt_in:     normalizeOptIn(row.email_opt_in),
+      optometrist:      row.optometrist ? String(row.optometrist).trim() : null,
+      language:         normalizeLang(row.language),
+      sms_opt_out:      false,
+      last_import_at:   new Date().toISOString(),
+    };
+
+    try {
+      if (existingPhones.has(phone)) {
+        await sb('patients?clinic_id=eq.'+CLINIC_ID+'&phone=eq.'+phone, {
+          method: 'PATCH',
+          prefer: 'return=minimal',
+          body: JSON.stringify(record),
+          noJson: true,
+        });
+        updated++;
+      } else {
+        await sb('patients', {
+          method: 'POST',
+          prefer: 'return=minimal',
+          body: JSON.stringify(record),
+          noJson: true,
+        });
+        inserted++;
+      }
+    } catch(e) {
+      console.warn('Upsert error for', phone, e);
+      skipped++;
+    }
+  }
+
+  showConfirm(inserted, updated, skipped);
+}
+
+// ════════════════════════════════════════════════════════
+// Confirmation finale
+// ════════════════════════════════════════════════════════
+function showConfirm(inserted, updated, skipped) {
+  document.getElementById('screen-loading').classList.remove('active');
+
+  const total = inserted + updated;
+  document.getElementById('confirm-sub').textContent =
+    `${total} patients synchronisés · ${inserted} nouveaux · ${updated} mis à jour`;
+  if (skipped > 0) {
+    document.getElementById('confirm-sub').textContent +=
+      ` · ${skipped} ignoré(s)`;
+  }
+
+  const next = new Date();
+  next.setMonth(next.getMonth() + 1);
+  next.setDate(1);
+  document.getElementById('next-import').innerHTML =
+    `Prochaine mise à jour suggérée : <strong>${next.toLocaleDateString('fr-CA',{day:'numeric',month:'long',year:'numeric'})}</strong>`;
+
+  goTo(4);
+}
+
+// ════════════════════════════════════════════════════════
+// Drag & Drop + File input
+// ════════════════════════════════════════════════════════
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+// ════════════════════════════════════════════════════════
+// Démarrage
+// ════════════════════════════════════════════════════════
+initClinic();
+</script>
+</body>
+</html>
