@@ -444,9 +444,14 @@
 // ════════════════════════════════════════════════════════
 const SUPABASE_URL = 'https://bunbtiuzyelhgvhpsgkz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_RLMDkK5MG45saVamG9Rh6Q_I0AaYbkG';
-const CLINIC_ID    = '1b1791c6-6f9f-4b78-b9eb-6ebcb15fe853';
-const CLINIC_NAME  = 'Clinique Optique Test';
-const CLINIC_EMAIL = 'test@optique.com';
+
+// Le clinic_id provient de la session posée par opto360-login.html — plus jamais codé en dur.
+// Sans session valide, retour immédiat à la page de connexion.
+const CLINIC_ID = sessionStorage.getItem('opto360_clinic_id');
+if (!CLINIC_ID) {
+  window.location.href = 'opto360-login.html';
+}
+let CLINIC_NAME = 'Chargement…';
 
 // ════════════════════════════════════════════════════════
 // Champs système et leurs synonymes
@@ -529,18 +534,31 @@ async function sb(path, options = {}) {
 // Init — charger la clinique
 // ════════════════════════════════════════════════════════
 async function initClinic() {
-  const initials = CLINIC_NAME.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
-  document.getElementById('clinic-avatar').textContent = initials;
-  document.getElementById('clinic-name').textContent = CLINIC_NAME;
   const d = new Date();
   document.getElementById('clinic-sub').textContent = 'Dernière mise à jour : ' +
     d.toLocaleDateString('fr-CA', {day:'numeric',month:'long',year:'numeric'});
   try {
+    // Charger le vrai nom de la clinique connectée depuis Supabase
+    const clinics = await sb('clinics?id=eq.' + CLINIC_ID + '&select=name');
+    if (!clinics || !clinics[0]) {
+      // clinic_id orphelin (clinique supprimée ou invalide) — retour au login
+      sessionStorage.removeItem('opto360_clinic_id');
+      window.location.href = 'opto360-login.html';
+      return;
+    }
+    CLINIC_NAME = clinics[0].name;
+    const initials = CLINIC_NAME.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+    document.getElementById('clinic-avatar').textContent = initials;
+    document.getElementById('clinic-name').textContent = CLINIC_NAME;
+
     const phones = await sb('patients?clinic_id=eq.' + CLINIC_ID + '&select=phone');
     existingPhones = new Set((phones || []).map(p => normalizePhone(p.phone)));
     const profile = await sb('clinic_column_profiles?clinic_id=eq.' + CLINIC_ID + '&select=mapping');
     if (profile && profile[0] && profile[0].mapping) currentMapping = profile[0].mapping;
-  } catch(e) { console.warn('Init error:', e); }
+  } catch(e) {
+    console.warn('Init error:', e);
+    document.getElementById('clinic-name').textContent = 'Erreur de chargement';
+  }
 }
 // ════════════════════════════════════════════════════════
 // Normalisation
