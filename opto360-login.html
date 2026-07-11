@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Opto360 — Connexion</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #F0F4F9;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+
+  /* ── Card ── */
+  .card {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 2px 16px rgba(27,79,138,.10);
+    width: 100%;
+    max-width: 420px;
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  .card-header {
+    background: #1B4F8A;
+    padding: 28px 32px 24px;
+    text-align: center;
+  }
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .logo-icon {
+    width: 38px; height: 38px;
+    background: rgba(255,255,255,.18);
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .logo-name {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -.3px;
+  }
+  .card-subtitle {
+    font-size: 13px;
+    color: rgba(255,255,255,.65);
+    margin-top: 4px;
+  }
+
+  /* ── Body ── */
+  .card-body { padding: 32px; }
+
+  .form-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: #1A1A2E;
+    margin-bottom: 22px;
+  }
+
+  /* ── Fields ── */
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #4A5568;
+    margin-bottom: 6px;
+  }
+  .field input {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 14px;
+    border: 1.5px solid #DDE4EE;
+    border-radius: 8px;
+    background: #F8FAFC;
+    color: #1A1A2E;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .field input:focus {
+    border-color: #1B4F8A;
+    background: #fff;
+  }
+  .field input::placeholder { color: #A0AEBF; }
+
+  /* ── Error ── */
+  .error-box {
+    display: none;
+    background: #FEF0F0;
+    border: 1px solid #E8A0A0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #6B1F1F;
+    margin-bottom: 16px;
+  }
+  .error-box.visible { display: block; }
+
+  /* ── Button ── */
+  .btn-login {
+    width: 100%;
+    background: #1B4F8A;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 11px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+    margin-top: 4px;
+  }
+  .btn-login:hover { background: #163F6E; }
+  .btn-login:disabled {
+    background: #A0AEBF;
+    cursor: not-allowed;
+  }
+
+  /* ── Loading spinner ── */
+  .spinner {
+    display: none;
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    margin: 0 auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Footer ── */
+  .card-footer {
+    border-top: 1px solid #F0F4F9;
+    padding: 16px 32px;
+    text-align: center;
+    font-size: 12px;
+    color: #A0AEBF;
+  }
+
+  /* ── Forgot password ── */
+  .forgot {
+    text-align: right;
+    margin-bottom: 20px;
+    margin-top: -8px;
+  }
+  .forgot a {
+    font-size: 12px;
+    color: #1B4F8A;
+    text-decoration: none;
+  }
+  .forgot a:hover { text-decoration: underline; }
+
+  /* ── Success (redirect) ── */
+  .redirect-msg {
+    display: none;
+    text-align: center;
+    padding: 8px 0 4px;
+  }
+  .redirect-msg .check {
+    font-size: 36px;
+    margin-bottom: 10px;
+  }
+  .redirect-msg p {
+    font-size: 14px;
+    color: #2A6B3C;
+    font-weight: 500;
+  }
+  .redirect-msg small {
+    font-size: 12px;
+    color: #7A8BA0;
+    display: block;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- HEADER -->
+  <div class="card-header">
+    <div class="logo">
+      <div class="logo-icon">👁</div>
+      <span class="logo-name">Opto360</span>
+    </div>
+    <div class="card-subtitle">Portail clinique — Accès sécurisé</div>
+  </div>
+
+  <!-- BODY -->
+  <div class="card-body">
+
+    <!-- Formulaire -->
+    <div id="login-form">
+      <div class="form-title">Connexion à votre espace</div>
+
+      <div class="error-box" id="error-box">
+        Courriel ou mot de passe incorrect. Veuillez réessayer.
+      </div>
+
+      <div class="field">
+        <label for="email">Courriel</label>
+        <input
+          type="email"
+          id="email"
+          placeholder="secretaire@clinique.com"
+          autocomplete="email"
+        >
+      </div>
+
+      <div class="field">
+        <label for="password">Mot de passe</label>
+        <input
+          type="password"
+          id="password"
+          placeholder="••••••••"
+          autocomplete="current-password"
+        >
+      </div>
+
+      <div class="forgot">
+        <a href="#" onclick="showForgot(event)">Mot de passe oublié ?</a>
+      </div>
+
+      <button class="btn-login" id="btn-login" onclick="handleLogin()">
+        <span id="btn-text">Se connecter</span>
+        <div class="spinner" id="spinner"></div>
+      </button>
+    </div>
+
+    <!-- Succès -->
+    <div class="redirect-msg" id="redirect-msg">
+      <div class="check">✅</div>
+      <p>Connexion réussie</p>
+      <small>Redirection en cours…</small>
+    </div>
+
+  </div>
+
+  <!-- FOOTER -->
+  <div class="card-footer">
+    Accès réservé aux cliniques partenaires Opto360
+  </div>
+
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+// CONFIG Supabase
+// ════════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://bunbtiuzyelhgvhpsgkz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RLMDkK5MG45saVamG9Rh6Q_I0AaYbkG';
+
+// URL de la page de mise à jour après connexion
+const REDIRECT_URL = 'opto360-import.html';
+
+// ════════════════════════════════════════════════════════
+// Login
+// ════════════════════════════════════════════════════════
+async function handleLogin() {
+  const email    = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const errorBox = document.getElementById('error-box');
+  const btn      = document.getElementById('btn-login');
+  const btnText  = document.getElementById('btn-text');
+  const spinner  = document.getElementById('spinner');
+
+  // Validation basique
+  if (!email || !password) {
+    errorBox.textContent = 'Veuillez saisir votre courriel et mot de passe.';
+    errorBox.classList.add('visible');
+    return;
+  }
+
+  // UI — loading
+  errorBox.classList.remove('visible');
+  btn.disabled = true;
+  btnText.style.display = 'none';
+  spinner.style.display = 'block';
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      throw new Error(data.error_description || 'Identifiants incorrects');
+    }
+
+    // Stocker le token de session
+    sessionStorage.setItem('opto360_token', data.access_token);
+    sessionStorage.setItem('opto360_user', JSON.stringify(data.user));
+
+    // Récupérer le clinic_id lié à cet utilisateur
+    const clinicRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/clinic_users?user_id=eq.${data.user.id}&select=clinic_id`,
+      {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${data.access_token}`,
+        }
+      }
+    );
+    const clinicData = await clinicRes.json();
+
+    if (clinicData && clinicData[0]) {
+      sessionStorage.setItem('opto360_clinic_id', clinicData[0].clinic_id);
+    }
+
+    // Succès — afficher message et rediriger
+    document.getElementById('login-form').style.display = 'none';
+    document.getElementById('redirect-msg').style.display = 'block';
+
+    setTimeout(() => {
+      window.location.href = REDIRECT_URL;
+    }, 1200);
+
+  } catch (err) {
+    errorBox.textContent = 'Courriel ou mot de passe incorrect. Veuillez réessayer.';
+    errorBox.classList.add('visible');
+    btn.disabled = false;
+    btnText.style.display = 'block';
+    spinner.style.display = 'none';
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// Mot de passe oublié
+// ════════════════════════════════════════════════════════
+async function showForgot(e) {
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+
+  if (!email) {
+    document.getElementById('error-box').textContent = 'Saisissez votre courriel ci-dessus, puis cliquez sur "Mot de passe oublié".';
+    document.getElementById('error-box').classList.add('visible');
+    return;
+  }
+
+  try {
+    await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+    document.getElementById('error-box').style.background = '#EAF3EE';
+    document.getElementById('error-box').style.borderColor = '#4A9E6B';
+    document.getElementById('error-box').style.color = '#1E4D2E';
+    document.getElementById('error-box').textContent = 'Un lien de réinitialisation a été envoyé à ' + email;
+    document.getElementById('error-box').classList.add('visible');
+  } catch(err) {
+    console.warn(err);
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// Enter key
+// ════════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') handleLogin();
+});
+</script>
+</body>
+</html>
